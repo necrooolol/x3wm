@@ -1,9 +1,9 @@
 /* TinyWM is written by Nick Welch <nick@incise.org> in 2005 & 2011.
- *
  * This software is in the public domain
  * and is provided AS IS, with NO WARRANTY. */
 
 #include <X11/Xlib.h>
+#include <X11/keysym.h>
 
 #define MAX(a, b) ((a) > (b) ? (a) : (b))
 
@@ -13,22 +13,40 @@ int main(void)
     XWindowAttributes attr;
     XButtonEvent start;
     XEvent ev;
+    Window root;   
 
     if(!(dpy = XOpenDisplay(0x0))) return 1;
-
+    
+    root = DefaultRootWindow(dpy);  
+                                    //hotkeys
     XGrabKey(dpy, XKeysymToKeycode(dpy, XStringToKeysym("F1")), Mod1Mask,
-            DefaultRootWindow(dpy), True, GrabModeAsync, GrabModeAsync);
-    XGrabButton(dpy, 1, Mod1Mask, DefaultRootWindow(dpy), True,
+            root, True, GrabModeAsync, GrabModeAsync);
+    XGrabKey(dpy, XKeysymToKeycode(dpy, XK_q), ControlMask, root, True,
+            GrabModeAsync, GrabModeAsync);
+    XGrabButton(dpy, 1, Mod1Mask, root, True,
             ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
-    XGrabButton(dpy, 3, Mod1Mask, DefaultRootWindow(dpy), True,
+    XGrabButton(dpy, 3, Mod1Mask, root, True,
             ButtonPressMask|ButtonReleaseMask|PointerMotionMask, GrabModeAsync, GrabModeAsync, None, None);
 
     start.subwindow = None;
     for(;;)
     {
         XNextEvent(dpy, &ev);
-        if(ev.type == KeyPress && ev.xkey.subwindow != None)
-            XRaiseWindow(dpy, ev.xkey.subwindow);
+        
+        if(ev.type == KeyPress) {       //closing windows
+            if(ev.xkey.keycode == XKeysymToKeycode(dpy, XK_q) && 
+               (ev.xkey.state & ControlMask)) {
+                Window target;
+                int revert;
+                XGetInputFocus(dpy, &target, &revert);
+                if (target != None && target != root) {
+                    XDestroyWindow(dpy, target);
+                }
+            }
+            else if(ev.xkey.subwindow != None) {
+                XRaiseWindow(dpy, ev.xkey.subwindow);
+            }
+        }
         else if(ev.type == ButtonPress && ev.xbutton.subwindow != None)
         {
             XGetWindowAttributes(dpy, ev.xbutton.subwindow, &attr);
@@ -48,4 +66,3 @@ int main(void)
             start.subwindow = None;
     }
 }
-
